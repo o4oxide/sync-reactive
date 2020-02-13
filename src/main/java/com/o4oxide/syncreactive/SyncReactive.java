@@ -1,7 +1,5 @@
 package com.o4oxide.syncreactive;
 
-import com.o4oxide.syncreactive.core.SyncReactiveImpl;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;

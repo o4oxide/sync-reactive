@@ -49,7 +49,6 @@ public class SyncReactiveTest {
         CompletableFuture<String> completionFuture = future.handle((res, ex) -> Thread.currentThread().getName());
         latch.countDown();
         //Future completion is done on supplied context thread;
-        assertTrue(completionFuture.isDone());
         assertEquals(CONTEXT_THREAD_NAME, completionFuture.get());
     }
 

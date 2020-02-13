@@ -1,6 +1,5 @@
-package com.o4oxide.syncreactive.core;
+package com.o4oxide.syncreactive;
 
-import com.o4oxide.syncreactive.SyncReactive;
 import com.o4oxide.syncreactive.core.tasks.AsyncTask;
 import com.o4oxide.syncreactive.core.tasks.SyncTask;
 
@@ -9,14 +8,14 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public class SyncReactiveImpl implements SyncReactive {
+class SyncReactiveImpl implements SyncReactive {
 
     private final ForkJoinPool pool;
     private Consumer<Runnable> completionContextSwitcher;
     private Consumer<Runnable> invocationContextSwitcher;
 
 
-    public SyncReactiveImpl() {
+    SyncReactiveImpl() {
         this.pool = new ForkJoinPool(
                             Runtime.getRuntime().availableProcessors(),
                             ForkJoinPool.defaultForkJoinWorkerThreadFactory,
@@ -25,13 +24,13 @@ public class SyncReactiveImpl implements SyncReactive {
         ;
     }
 
-    public SyncReactiveImpl(Consumer<Runnable> contextSwitcher) {
+    SyncReactiveImpl(Consumer<Runnable> contextSwitcher) {
         this();
         this.completionContextSwitcher = contextSwitcher;
         this.invocationContextSwitcher = contextSwitcher;
     }
 
-    public SyncReactiveImpl(Consumer<Runnable> completionContextSwitcher, Consumer<Runnable> invocationContextSwitcher) {
+    SyncReactiveImpl(Consumer<Runnable> completionContextSwitcher, Consumer<Runnable> invocationContextSwitcher) {
         this();
         this.completionContextSwitcher = completionContextSwitcher;
         this.invocationContextSwitcher = invocationContextSwitcher;
