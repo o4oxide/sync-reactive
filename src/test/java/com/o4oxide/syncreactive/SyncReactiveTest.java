@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -13,22 +14,20 @@ public class SyncReactiveTest {
     void asyncRunsSyncCodeAsAsync() throws ExecutionException, InterruptedException {
         SyncReactive syncReactive = SyncReactive.syncReactive();
         CountDownLatch latch = new CountDownLatch(1);
-        //Add 1 to the input
-        CompletableFuture<Integer> future =
-                syncReactive.async(num -> {
-                    try {
-                        latch.await();
-                        return num + 1;
-                    } catch (InterruptedException ex) {
-                        return num;
-                    }
-        }, 1);
+        Function<Integer, Integer> blockingFunction = num -> {
+            try {
+                latch.await();
+                return num + 1;
+            } catch (InterruptedException ex) {
+                return num;
+            }
+        };
+        CompletableFuture<Integer> future = syncReactive.async(blockingFunction, 1);
         //Future is not done because sync code is waiting on latch
         assertFalse(future.isDone());
+        //Release lock on blocking function
         latch.countDown();
-        //Future is done because sync code has been released from latch
-        assertFalse(future.isDone());
-        //Future result is 1 plus input: 1
+        //Future completes and returns result 1 plus input: 1
         assertEquals(2, (int) future.get());
     }
 
@@ -37,33 +36,36 @@ public class SyncReactiveTest {
         final String CONTEXT_THREAD_NAME = "contextSwitcher";
         SyncReactive syncReactive = SyncReactive.syncReactive(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
         CountDownLatch latch = new CountDownLatch(1);
-        CompletableFuture<Integer> future = syncReactive.async(num -> {
+        Function<Integer, Integer> blockingFunction = num -> {
             try {
                 latch.await();
                 return num + 1;
             } catch (InterruptedException ex) {
                 return 1;
             }
-        }, 1);
-        //Add a completion function that will run when the future has completed
-        CompletableFuture<String> completionFuture = future.handle((res, ex) -> Thread.currentThread().getName());
+        };
+        CompletableFuture<Integer> future = syncReactive.async(blockingFunction, 1);
+        //Add a completion function that will run on the supplied context when the future has completed
+        CompletableFuture<Map.Entry<String,Integer>> completionFuture = future.handle((res, ex) -> Map.entry(Thread.currentThread().getName(), res));
         latch.countDown();
         //Future completion is done on supplied context thread;
-        assertEquals(CONTEXT_THREAD_NAME, completionFuture.get());
+        assertEquals(CONTEXT_THREAD_NAME, completionFuture.get().getKey());
+        //Future completion addition result is 2
+        assertEquals(2, completionFuture.get().getValue());
     }
 
     @Test
     void syncRunsAsyncCodeAsSync() {
         SyncReactive syncReactive = SyncReactive.syncReactive();
-        //Add 1 to the input
         long start = System.currentTimeMillis();
-        Integer result = syncReactive.sync(num -> {
+        Function<Integer, CompletableFuture<Integer>> asyncFunction = num -> {
             CompletableFuture<Integer> future = new CompletableFuture<>();
             Executors.newSingleThreadScheduledExecutor()
                     .schedule(()-> future.complete(num + 1),
                             2000, TimeUnit.MILLISECONDS);
             return future;
-        }, 1);
+        };
+        Integer result = syncReactive.sync(asyncFunction, 1);
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -75,16 +77,16 @@ public class SyncReactiveTest {
     void syncRunsAsyncCodeOnDifferentThreadContext() {
         final String CONTEXT_THREAD_NAME = "contextSwitcher";
         SyncReactive syncReactive = SyncReactive.syncReactive(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
-        //Add 1 to the input
         long start = System.currentTimeMillis();
-        Map.Entry<String, Integer> result = syncReactive.sync(num -> {
+        Function<Integer, CompletableFuture<Map.Entry<String, Integer>>> asyncFunction = num -> {
             CompletableFuture<Map.Entry<String, Integer>> future = new CompletableFuture<>();
             String invocationThreadName = Thread.currentThread().getName();
             Executors.newSingleThreadScheduledExecutor()
                     .schedule(()-> future.complete(Map.entry(invocationThreadName, num +1)),
                             2000, TimeUnit.MILLISECONDS);
             return future;
-        }, 1);
+        };
+        Map.Entry<String, Integer> result = syncReactive.sync(asyncFunction, 1);
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -92,5 +94,48 @@ public class SyncReactiveTest {
         assertEquals(2, result.getValue());
         //Check that we ran on the context switcher thread
         assertEquals(CONTEXT_THREAD_NAME, result.getKey());
+    }
+
+    @Test
+    void asyncCompletesExceptionallyWithExceptionalSyncCode() {
+        SyncReactive syncReactive = SyncReactive.syncReactive();
+        CountDownLatch latch = new CountDownLatch(1);
+        String EXCEPTION_MESSAGE = "exception test at " + System.nanoTime();
+        Function<Integer, Void> blockingFunction = num -> {
+            try {
+                latch.await();
+                throw new RuntimeException(EXCEPTION_MESSAGE);
+            } catch (InterruptedException ex) {
+                return null;
+            }
+        };
+        CompletableFuture<Void> future = syncReactive.async(blockingFunction, 1);
+        //Future is not done because sync code is waiting on latch
+        assertFalse(future.isDone());
+        //Release lock on blocking function
+        latch.countDown();
+        //Future completes exceptionally
+        ExecutionException ex = assertThrows(ExecutionException.class, future::get);
+        assertTrue(future.isCompletedExceptionally());
+        assertEquals(EXCEPTION_MESSAGE, ex.getCause().getMessage());
+    }
+
+    @Test
+    void syncThrowsUncheckedExceptionWithExceptionalAsyncCode() {
+        SyncReactive syncReactive = SyncReactive.syncReactive();
+        long start = System.currentTimeMillis();
+        String EXCEPTION_MESSAGE = "exception test at " + System.nanoTime();
+        Function<Integer, CompletableFuture<Void>> asyncFunction = num -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            Executors.newSingleThreadScheduledExecutor()
+                    .schedule(()-> future.completeExceptionally(new RuntimeException(EXCEPTION_MESSAGE)),
+                            2000, TimeUnit.MILLISECONDS);
+            return future;
+        };
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> syncReactive.sync(asyncFunction, 1));
+        assertEquals(EXCEPTION_MESSAGE, ex.getCause().getMessage());
+        long end = System.currentTimeMillis() - start;
+        //Check that we actually waited for two seconds or more
+        assertTrue(end >= 2000);
     }
 }
