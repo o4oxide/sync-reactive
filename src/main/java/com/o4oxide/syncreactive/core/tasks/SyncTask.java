@@ -1,21 +1,22 @@
 package com.o4oxide.syncreactive.core.tasks;
 
-import com.o4oxide.syncreactive.FunctionInstance;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountedCompleter;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class SyncTask<T, R> extends Task<R> {
 
-    private final FunctionInstance<T, CompletableFuture<R>> nonBlockingFunction;
+    private final Function<T, CompletableFuture<R>> nonBlockingFunction;
+    private final T input;
     private final ForkJoinPool pool;
     private R result;
 
-    public SyncTask(FunctionInstance<T, CompletableFuture<R>> nonBlockingFunction, Consumer<Runnable> contextSwitcher, ForkJoinPool pool) {
+    public SyncTask(Function<T, CompletableFuture<R>> nonBlockingFunction, T input, Consumer<Runnable> contextSwitcher, ForkJoinPool pool) {
         super(contextSwitcher);
         this.nonBlockingFunction = nonBlockingFunction;
+        this.input = input;
         this.pool = pool;
     }
 
@@ -35,7 +36,7 @@ public class SyncTask<T, R> extends Task<R> {
     }
 
     private void runAsyncFunction() {
-        this.nonBlockingFunction.execute()
+        this.nonBlockingFunction.apply(input)
                 .whenComplete((res, ex) -> this.pool.execute(new ContextCompleter<>(res, ex, this)));
     }
 

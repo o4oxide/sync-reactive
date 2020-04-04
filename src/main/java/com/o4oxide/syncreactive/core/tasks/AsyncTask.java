@@ -1,26 +1,27 @@
 package com.o4oxide.syncreactive.core.tasks;
 
-import com.o4oxide.syncreactive.FunctionInstance;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountedCompleter;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class AsyncTask<T, R> extends Task<R> {
 
-    private final FunctionInstance<T, R> blockingFunction;
+    private final Function<T, R> blockingFunction;
+    private final T input;
     private final CompletableFuture<R> asyncFuture;
     private R result;
 
-    public AsyncTask(FunctionInstance<T, R> blockingFunction, CompletableFuture<R> asyncFuture, Consumer<Runnable> contextSwitcher){
+    public AsyncTask(Function<T, R> blockingFunction, T input, CompletableFuture<R> asyncFuture, Consumer<Runnable> contextSwitcher){
         super(contextSwitcher);
         this.blockingFunction = blockingFunction;
+        this.input = input;
         this.asyncFuture = asyncFuture;
     }
 
     @Override
     public void compute() {
-        result = blockingFunction.execute();
+        result = blockingFunction.apply(input);
         tryComplete();
     }
 
