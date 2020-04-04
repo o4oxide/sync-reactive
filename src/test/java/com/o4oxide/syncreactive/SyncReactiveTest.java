@@ -22,7 +22,7 @@ public class SyncReactiveTest {
                 return num;
             }
         };
-        CompletableFuture<Integer> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
+        CompletableFuture<Integer> future = syncReactive.async(FunctionInstance.of(blockingFunction, 1));
         //Future is not done because sync code is waiting on latch
         assertFalse(future.isDone());
         //Release lock on blocking function
@@ -44,7 +44,7 @@ public class SyncReactiveTest {
                 return 1;
             }
         };
-        CompletableFuture<Integer> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
+        CompletableFuture<Integer> future = syncReactive.async(FunctionInstance.of(blockingFunction, 1));
         //Add a completion function that will run on the supplied context when the future has completed
         CompletableFuture<Map.Entry<String,Integer>> completionFuture = future.handle((res, ex) -> Map.entry(Thread.currentThread().getName(), res));
         latch.countDown();
@@ -65,7 +65,7 @@ public class SyncReactiveTest {
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        Integer result = syncReactive.sync(FunctionParam.of(asyncFunction, 1));
+        Integer result = syncReactive.sync(FunctionInstance.of(asyncFunction, 1));
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -86,7 +86,7 @@ public class SyncReactiveTest {
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        Map.Entry<String, Integer> result = syncReactive.sync(FunctionParam.of(asyncFunction, 1));
+        Map.Entry<String, Integer> result = syncReactive.sync(FunctionInstance.of(asyncFunction, 1));
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -109,7 +109,7 @@ public class SyncReactiveTest {
                 return null;
             }
         };
-        CompletableFuture<Void> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
+        CompletableFuture<Void> future = syncReactive.async(FunctionInstance.of(blockingFunction, 1));
         //Future is not done because sync code is waiting on latch
         assertFalse(future.isDone());
         //Release lock on blocking function
@@ -133,7 +133,7 @@ public class SyncReactiveTest {
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        SyncReactiveTestException ex = assertThrows(SyncReactiveTestException.class, () -> syncReactive.sync(FunctionParam.of(asyncFunction, 1)));
+        SyncReactiveTestException ex = assertThrows(SyncReactiveTestException.class, () -> syncReactive.sync(FunctionInstance.of(asyncFunction, 1)));
         assertEquals(EXCEPTION_MESSAGE, ex.getMessage());
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more

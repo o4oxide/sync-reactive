@@ -4,8 +4,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public interface SyncReactive {
-    <T, R> CompletableFuture<R> async(FunctionParam<T, R> blockingFunctionParam);
-    <T, R> R sync(FunctionParam<T, CompletableFuture<R>> nonBlockingFunctionParam);
+    <T, R> CompletableFuture<R> async(FunctionInstance<T, R> blockingFunction);
+    <T, R> R sync(FunctionInstance<T, CompletableFuture<R>> nonBlockingFunction);
 
     static SyncReactive syncReactive() {
         return new SyncReactiveImpl();
