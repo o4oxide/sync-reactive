@@ -22,7 +22,7 @@ public class SyncReactiveTest {
                 return num;
             }
         };
-        CompletableFuture<Integer> future = syncReactive.async(blockingFunction, 1);
+        CompletableFuture<Integer> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
         //Future is not done because sync code is waiting on latch
         assertFalse(future.isDone());
         //Release lock on blocking function
@@ -44,7 +44,7 @@ public class SyncReactiveTest {
                 return 1;
             }
         };
-        CompletableFuture<Integer> future = syncReactive.async(blockingFunction, 1);
+        CompletableFuture<Integer> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
         //Add a completion function that will run on the supplied context when the future has completed
         CompletableFuture<Map.Entry<String,Integer>> completionFuture = future.handle((res, ex) -> Map.entry(Thread.currentThread().getName(), res));
         latch.countDown();
@@ -65,7 +65,7 @@ public class SyncReactiveTest {
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        Integer result = syncReactive.sync(asyncFunction, 1);
+        Integer result = syncReactive.sync(FunctionParam.of(asyncFunction, 1));
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -86,7 +86,7 @@ public class SyncReactiveTest {
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        Map.Entry<String, Integer> result = syncReactive.sync(asyncFunction, 1);
+        Map.Entry<String, Integer> result = syncReactive.sync(FunctionParam.of(asyncFunction, 1));
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
@@ -104,12 +104,12 @@ public class SyncReactiveTest {
         Function<Integer, Void> blockingFunction = num -> {
             try {
                 latch.await();
-                throw new RuntimeException(EXCEPTION_MESSAGE);
+                throw new SyncReactiveTestException(EXCEPTION_MESSAGE);
             } catch (InterruptedException ex) {
                 return null;
             }
         };
-        CompletableFuture<Void> future = syncReactive.async(blockingFunction, 1);
+        CompletableFuture<Void> future = syncReactive.async(FunctionParam.of(blockingFunction, 1));
         //Future is not done because sync code is waiting on latch
         assertFalse(future.isDone());
         //Release lock on blocking function
@@ -117,6 +117,7 @@ public class SyncReactiveTest {
         //Future completes exceptionally
         ExecutionException ex = assertThrows(ExecutionException.class, future::get);
         assertTrue(future.isCompletedExceptionally());
+        assertEquals(SyncReactiveTestException.class, ex.getCause().getClass());
         assertEquals(EXCEPTION_MESSAGE, ex.getCause().getMessage());
     }
 
@@ -128,14 +129,20 @@ public class SyncReactiveTest {
         Function<Integer, CompletableFuture<Void>> asyncFunction = num -> {
             CompletableFuture<Void> future = new CompletableFuture<>();
             Executors.newSingleThreadScheduledExecutor()
-                    .schedule(()-> future.completeExceptionally(new RuntimeException(EXCEPTION_MESSAGE)),
+                    .schedule(()-> future.completeExceptionally(new SyncReactiveTestException(EXCEPTION_MESSAGE)),
                             2000, TimeUnit.MILLISECONDS);
             return future;
         };
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> syncReactive.sync(asyncFunction, 1));
-        assertEquals(EXCEPTION_MESSAGE, ex.getCause().getMessage());
+        SyncReactiveTestException ex = assertThrows(SyncReactiveTestException.class, () -> syncReactive.sync(FunctionParam.of(asyncFunction, 1)));
+        assertEquals(EXCEPTION_MESSAGE, ex.getMessage());
         long end = System.currentTimeMillis() - start;
         //Check that we actually waited for two seconds or more
         assertTrue(end >= 2000);
+    }
+
+    private static final class SyncReactiveTestException extends RuntimeException {
+        SyncReactiveTestException(String message) {
+            super(message);
+        }
     }
 }

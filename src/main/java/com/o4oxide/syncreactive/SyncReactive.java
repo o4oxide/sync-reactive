@@ -2,11 +2,10 @@ package com.o4oxide.syncreactive;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 public interface SyncReactive {
-    <T, R> CompletableFuture<R> async(Function<T, R> blockingFunction, T input);
-    <T, R> R sync(Function<T, CompletableFuture<R>> nonBlockingFunction, T input);
+    <T, R> CompletableFuture<R> async(FunctionParam<T, R> blockingFunctionParam);
+    <T, R> R sync(FunctionParam<T, CompletableFuture<R>> nonBlockingFunctionParam);
 
     static SyncReactive syncReactive() {
         return new SyncReactiveImpl();
