@@ -36,6 +36,22 @@ class SyncReactiveImpl implements SyncReactive {
         this.invocationContextSwitcher = invocationContextSwitcher;
     }
 
+    SyncReactiveImpl(ForkJoinPool pool) {
+        this.pool = pool;
+    }
+
+    SyncReactiveImpl(ForkJoinPool pool, Consumer<Runnable> contextSwitcher) {
+        this(pool);
+        this.completionContextSwitcher = contextSwitcher;
+        this.invocationContextSwitcher = contextSwitcher;
+    }
+
+    SyncReactiveImpl(ForkJoinPool pool, Consumer<Runnable> completionContextSwitcher, Consumer<Runnable> invocationContextSwitcher) {
+        this(pool);
+        this.completionContextSwitcher = completionContextSwitcher;
+        this.invocationContextSwitcher = invocationContextSwitcher;
+    }
+
     @Override
     public <T, R> CompletableFuture<R> async(Function<T, R> blockingFunction, T input) {
         CompletableFuture<R> asyncFuture = new CompletableFuture<>();

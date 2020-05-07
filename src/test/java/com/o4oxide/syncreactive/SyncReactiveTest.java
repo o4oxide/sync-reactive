@@ -140,6 +140,47 @@ public class SyncReactiveTest {
         assertTrue(end >= 2000);
     }
 
+    @Test
+    void asyncRunsSyncCodeAsAsyncUsingCustomForkJoinPool() throws ExecutionException, InterruptedException {
+        SyncReactive syncReactive = SyncReactive.syncReactive(ForkJoinPool.commonPool());
+        CountDownLatch latch = new CountDownLatch(1);
+        Function<Integer, Integer> blockingFunction = num -> {
+            try {
+                latch.await();
+                return num + 1;
+            } catch (InterruptedException ex) {
+                return num;
+            }
+        };
+        CompletableFuture<Integer> future = syncReactive.async(blockingFunction, 1);
+        //Future is not done because sync code is waiting on latch
+        assertFalse(future.isDone());
+        //Release lock on blocking function
+        latch.countDown();
+        //Future completes and returns result 1 plus input: 1
+        assertEquals(2, (int) future.get());
+    }
+
+    @Test
+    void syncRunsAsyncCodeAsSyncUsingCustomForkJoinPool() {
+        SyncReactive syncReactive = SyncReactive.syncReactive(ForkJoinPool.commonPool());
+        long start = System.currentTimeMillis();
+        Function<Integer, CompletableFuture<Integer>> asyncFunction = num -> {
+            CompletableFuture<Integer> future = new CompletableFuture<>();
+            Executors.newSingleThreadScheduledExecutor()
+                    .schedule(()-> future.complete(num + 1),
+                            2000, TimeUnit.MILLISECONDS);
+            return future;
+        };
+        Integer result = syncReactive.sync(asyncFunction, 1);
+        long end = System.currentTimeMillis() - start;
+        //Check that we actually waited for two seconds or more
+        assertTrue(end >= 2000);
+        //Check that we have 2 as the result
+        assertEquals(2, result);
+    }
+
+
     private static final class SyncReactiveTestException extends RuntimeException {
         SyncReactiveTestException(String message) {
             super(message);
