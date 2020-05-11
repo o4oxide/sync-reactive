@@ -12,7 +12,7 @@ public class SyncReactiveTest {
 
     @Test
     void asyncRunsSyncCodeAsAsync() throws ExecutionException, InterruptedException {
-        SyncReactive syncReactive = SyncReactive.syncReactive();
+        SyncReactive syncReactive = SyncReactive.create();
         CountDownLatch latch = new CountDownLatch(1);
         Function<Integer, Integer> blockingFunction = num -> {
             try {
@@ -34,7 +34,7 @@ public class SyncReactiveTest {
     @Test
     void asyncRunsCompletionOnDifferentThreadContext() throws ExecutionException, InterruptedException {
         final String CONTEXT_THREAD_NAME = "contextSwitcher";
-        SyncReactive syncReactive = SyncReactive.syncReactive(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
+        SyncReactive syncReactive = SyncReactive.create(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
         CountDownLatch latch = new CountDownLatch(1);
         Function<Integer, Integer> blockingFunction = num -> {
             try {
@@ -56,7 +56,7 @@ public class SyncReactiveTest {
 
     @Test
     void syncRunsAsyncCodeAsSync() {
-        SyncReactive syncReactive = SyncReactive.syncReactive();
+        SyncReactive syncReactive = SyncReactive.create();
         long start = System.currentTimeMillis();
         Function<Integer, CompletableFuture<Integer>> asyncFunction = num -> {
             CompletableFuture<Integer> future = new CompletableFuture<>();
@@ -76,7 +76,7 @@ public class SyncReactiveTest {
     @Test
     void syncRunsAsyncCodeOnDifferentThreadContext() {
         final String CONTEXT_THREAD_NAME = "contextSwitcher";
-        SyncReactive syncReactive = SyncReactive.syncReactive(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
+        SyncReactive syncReactive = SyncReactive.create(runnable -> new Thread(runnable, CONTEXT_THREAD_NAME).start());
         long start = System.currentTimeMillis();
         Function<Integer, CompletableFuture<Map.Entry<String, Integer>>> asyncFunction = num -> {
             CompletableFuture<Map.Entry<String, Integer>> future = new CompletableFuture<>();
@@ -98,7 +98,7 @@ public class SyncReactiveTest {
 
     @Test
     void asyncCompletesExceptionallyWithExceptionalSyncCode() {
-        SyncReactive syncReactive = SyncReactive.syncReactive();
+        SyncReactive syncReactive = SyncReactive.create();
         CountDownLatch latch = new CountDownLatch(1);
         String EXCEPTION_MESSAGE = "exception test at " + System.nanoTime();
         Function<Integer, Void> blockingFunction = num -> {
@@ -123,7 +123,7 @@ public class SyncReactiveTest {
 
     @Test
     void syncThrowsUncheckedExceptionWithExceptionalAsyncCode() {
-        SyncReactive syncReactive = SyncReactive.syncReactive();
+        SyncReactive syncReactive = SyncReactive.create();
         long start = System.currentTimeMillis();
         String EXCEPTION_MESSAGE = "exception test at " + System.nanoTime();
         Function<Integer, CompletableFuture<Void>> asyncFunction = num -> {
@@ -142,7 +142,7 @@ public class SyncReactiveTest {
 
     @Test
     void asyncRunsSyncCodeAsAsyncUsingCustomForkJoinPool() throws ExecutionException, InterruptedException {
-        SyncReactive syncReactive = SyncReactive.syncReactive(ForkJoinPool.commonPool());
+        SyncReactive syncReactive = SyncReactive.create(ForkJoinPool.commonPool());
         CountDownLatch latch = new CountDownLatch(1);
         Function<Integer, Integer> blockingFunction = num -> {
             try {
@@ -163,7 +163,7 @@ public class SyncReactiveTest {
 
     @Test
     void syncRunsAsyncCodeAsSyncUsingCustomForkJoinPool() {
-        SyncReactive syncReactive = SyncReactive.syncReactive(ForkJoinPool.commonPool());
+        SyncReactive syncReactive = SyncReactive.create(ForkJoinPool.commonPool());
         long start = System.currentTimeMillis();
         Function<Integer, CompletableFuture<Integer>> asyncFunction = num -> {
             CompletableFuture<Integer> future = new CompletableFuture<>();
